@@ -1,0 +1,25 @@
+{
+  "records": [
+    {
+      "client_record_id": "262288c7-f894-4b62-9856-48a9e73955a7",
+      "start_ts": "2026-09-27T17:00:05.000Z",
+      "is_use": true,
+      "distinct_app_count": 2,
+      "granularity": "small"
+    },
+    {
+      "client_record_id": "3fede43c-a82a-4044-ab1d-1a4654d86bf6",
+      "start_ts": "2026-09-27T17:06:05.000Z",
+      "is_use": false,
+      "distinct_app_count": 0,
+      "granularity": "small"
+    },
+    {
+      "client_record_id": "da6ac4e2-7d64-44fb-b63e-b6c9e1837d65",
+      "start_ts": "2026-09-27T17:30:05.000Z",
+      "is_use": true,
+      "distinct_app_count": 2,
+      "granularity": "small"
+    }
+  ]
+}

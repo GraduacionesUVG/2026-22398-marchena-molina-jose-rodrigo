@@ -1,0 +1,78 @@
+{
+  "rules": {
+    "k_min": 10,
+    "cooldown_min": 10,
+    "episode_min": 60,
+    "daily_cap": 20,
+    "session_gap_s": 30,
+    "t_max_h": 3,
+    "profile_days": 3,
+    "p": 0.8,
+    "w_min": 60
+  },
+  "validation_people": [
+    "2e0a58b8-48e8-474e-a2f3-3bf660f82668",
+    "52f72cf1-cdf7-43e7-aab8-54828b701e0a",
+    "d14f741e-ce7b-4f22-bc2a-087fc82b21f5"
+  ],
+  "models": {
+    "F": {
+      "folder": "data/models/F",
+      "label": "y_f",
+      "label_offset_min": 0,
+      "n_features": 78,
+      "calibrator": "platt",
+      "cutoff": 0.302,
+      "trees_per_seed": [
+        187,
+        186,
+        155,
+        177,
+        216
+      ],
+      "validation_auc_median": 0.7621300512236767,
+      "validation_mean_score": 0.37179526686668396,
+      "validation_positive_rate": 0.38461538461538464
+    },
+    "S": {
+      "folder": "data/models/S",
+      "label": "y_s",
+      "label_offset_min": 30,
+      "n_features": 36,
+      "calibrator": "raw",
+      "cutoff": 0.2415740185728322,
+      "trees_per_seed": [
+        98,
+        174,
+        251,
+        247,
+        228
+      ],
+      "validation_auc_median": 0.936410497314729,
+      "validation_mean_score": 0.15689383447170258,
+      "validation_positive_rate": 0.140927624872579
+    }
+  },
+  "population_prior": {
+    "F": {
+      "pf": 7.772341734575637,
+      "ps": 7.551455536673661,
+      "n_people": 18,
+      "n0_points": {
+        "pf": 71.0,
+        "ps": 247.0
+      },
+      "source": "mean over real people of their all-days p80 on this model windows (E2)"
+    },
+    "S": {
+      "pf": 7.690528660579965,
+      "ps": 7.53131894029252,
+      "n_people": 18,
+      "n0_points": {
+        "pf": 71.0,
+        "ps": 247.0
+      },
+      "source": "mean over real people of their all-days p80 on this model windows (E2)"
+    }
+  }
+}

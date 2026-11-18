@@ -1,0 +1,11 @@
+{
+  "records": [
+    {
+      "client_record_id": "not-a-uuid",
+      "start_ts": "2026-09-27T17:54:05.000Z",
+      "is_use": true,
+      "distinct_app_count": 2,
+      "granularity": "small"
+    }
+  ]
+}

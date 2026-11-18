@@ -1,0 +1,24 @@
+# Copy this file to local.properties (git-ignored) and fill in your values.
+# Android Studio writes sdk.dir on its own.
+sdk.dir=/path/to/Android/Sdk
+
+# --- Backend (required for a working build) ---------------------------------
+# Base URL of the SmartUse API, without a trailing slash.
+# Alternative: the SMARTUSE_BASE_URL environment variable.
+smartuse.baseUrl=https://your-backend.example.com/prod
+
+# --- Study contact shown to participants (Welcome, Terms, end screens) ------
+# Alternatives: SMARTUSE_CONTACT_PHONE / SMARTUSE_CONTACT_EMAIL.
+smartuse.contact.phone=+000 0000 0000
+smartuse.contact.email=contact@example.com
+
+# --- Release signing (optional; without it the release APK is unsigned) -----
+# smartuse.release.baseUrl=https://your-backend.example.com/prod
+# smartuse.release.storeFile=path/to/release.jks
+# smartuse.release.storePassword=
+# smartuse.release.keyAlias=
+# smartuse.release.keyPassword=
+
+# --- Debug-only job tuning (release ignores these; 0 or absent = default) ----
+# smartuse.cycleIntervalMinutes=15
+# smartuse.stuckAfterFailedRuns=3

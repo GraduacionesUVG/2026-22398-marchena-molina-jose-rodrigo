@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SAS-SV · SmartUse</title>
+  <meta name="description" content="Evaluación de SAS-SV para proyecto de graduación SmartUse de la Universidad del Valle de Guatemala.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --surface: #f4f5f6;
+      --border: #b9bdc3;
+      --text: #1f2328;
+      --muted: #5f656d;
+      --blue: #1c3a6e;
+      --error: #a32020;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.55 "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 680px; margin: 0 auto; padding: 40px 16px 64px; }
+
+    header { margin-bottom: 28px; }
+    h1 { font-size: 24px; font-weight: 600; line-height: 1.3; margin: 0 0 8px; color: var(--blue); }
+    .subtitle { margin: 0; color: var(--muted); }
+
+    .box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+    .instructions { margin-bottom: 24px; }
+    .instructions p { margin: 0; }
+    .instructions p + p { margin-top: 8px; color: var(--muted); font-size: 14px; }
+
+    .question p { margin: 0 0 14px; }
+    .question .num { color: var(--blue); font-weight: 600; margin-right: 6px; }
+    .question.missing { border-color: var(--error); }
+
+    .scale { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+    .scale input {
+      position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+      overflow: hidden; clip: rect(0 0 0 0); border: 0;
+    }
+    .scale label {
+      display: flex; align-items: center; justify-content: center;
+      height: 42px; background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+      font-weight: 500; cursor: pointer; user-select: none;
+    }
+    .scale label:hover { border-color: var(--blue); }
+    .scale input:focus-visible + label { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .scale input:checked + label { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .anchors { display: flex; justify-content: space-between; gap: 16px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+    .anchors span:last-child { text-align: right; }
+
+    .submit-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 24px; }
+    button {
+      font: inherit; font-weight: 500; padding: 11px 22px; border-radius: 4px; cursor: pointer;
+      border: 1px solid var(--blue); background: var(--blue); color: #fff;
+    }
+    button:hover { background: #142c55; }
+    .progress { font-size: 14px; color: var(--muted); }
+    .error-msg { color: var(--error); font-size: 14px; margin: 12px 0 0; min-height: 1.4em; }
+
+    #result { display: none; }
+    .result-label { font-size: 14px; color: var(--muted); margin: 0; }
+    .score { font-size: 48px; font-weight: 600; line-height: 1.1; margin: 4px 0 16px; color: var(--blue); }
+    .score small { font-size: 20px; font-weight: 500; color: var(--muted); }
+    .verdict { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+    .date { color: var(--muted); margin: 0; font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Smartphone Addiction Scale - Short Version (SAS-SV)</h1>
+    <p class="subtitle">Evaluación de SAS-SV para proyecto de graduación SmartUse de la Universidad del Valle de Guatemala</p>
+  </header>
+
+  <div id="quiz">
+    <div class="box instructions">
+      <p>Indique en qué medida está de acuerdo con cada enunciado, en una escala de 1 (totalmente en desacuerdo) a 6 (totalmente de acuerdo).</p>
+      <p>Sus respuestas no se guardan ni se envían.</p>
+    </div>
+
+    <form id="form" novalidate>
+      <div id="questions"></div>
+      <div class="submit-row">
+        <button type="submit">Ver resultado</button>
+        <span class="progress" id="progress"></span>
+      </div>
+      <p class="error-msg" id="error" role="alert"></p>
+    </form>
+  </div>
+
+  <div class="box" id="result" aria-live="polite">
+    <p class="result-label">Puntuación</p>
+    <div class="score"><span id="score"></span> <small>/ 60</small></div>
+    <p class="verdict" id="verdict"></p>
+    <p class="date" id="date"></p>
+  </div>
+</main>
+
+<script>
+  const QUESTIONS = [
+    "Perder actividades planificadas debido al uso del smartphone.",
+    "Tener dificultad para concentrarme en clase, al hacer tareas o al trabajar, debido al uso del smartphone.",
+    "Sentir dolor en las muñecas o en la parte posterior del cuello mientras uso el smartphone.",
+    "Sentir que no podría soportar no tener mi smartphone.",
+    "Sentirme impaciente e inquieto cuando no tengo mi smartphone en la mano.",
+    "Tener mi smartphone en la mente incluso cuando no lo estoy usando.",
+    "No dejar de usar mi smartphone aunque mi vida diaria ya se vea muy afectada por ello.",
+    "Revisar constantemente mi smartphone para no perderme conversaciones entre otras personas en redes sociales.",
+    "Usar mi smartphone por más tiempo del que tenía planeado.",
+    "Que las personas a mi alrededor me digan que uso demasiado el smartphone."
+  ];
+  const ELIGIBILITY_CUTOFF = 36;
+
+  const form = document.getElementById("form");
+  const container = document.getElementById("questions");
+  const progress = document.getElementById("progress");
+  const error = document.getElementById("error");
+
+  QUESTIONS.forEach((text, i) => {
+    const n = i + 1;
+    const box = document.createElement("div");
+    box.className = "box question";
+    box.id = `q${n}`;
+    const options = [1, 2, 3, 4, 5, 6].map(v =>
+      `<input type="radio" name="q${n}" id="q${n}-${v}" value="${v}"><label for="q${n}-${v}">${v}</label>`
+    ).join("");
+    box.innerHTML = `
+      <p id="q${n}-text"><span class="num">${n}.</span>${text}</p>
+      <div class="scale" role="radiogroup" aria-labelledby="q${n}-text">${options}</div>
+      <div class="anchors"><span>Totalmente en desacuerdo</span><span>Totalmente de acuerdo</span></div>`;
+    container.appendChild(box);
+  });
+
+  function answers() {
+    return QUESTIONS.map((_, i) => {
+      const checked = form.querySelector(`input[name="q${i + 1}"]:checked`);
+      return checked ? Number(checked.value) : null;
+    });
+  }
+
+  function updateProgress() {
+    const done = answers().filter(v => v !== null).length;
+    progress.textContent = `${done} de ${QUESTIONS.length} respondidas`;
+  }
+
+  form.addEventListener("change", e => {
+    e.target.closest(".question")?.classList.remove("missing");
+    error.textContent = "";
+    updateProgress();
+  });
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    const values = answers();
+    const missing = values.map((v, i) => v === null ? i : -1).filter(i => i >= 0);
+    if (missing.length) {
+      missing.forEach(i => document.getElementById(`q${i + 1}`).classList.add("missing"));
+      error.textContent = `Faltan ${missing.length} pregunta(s) por responder.`;
+      document.getElementById(`q${missing[0] + 1}`).scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    showResult(values);
+  });
+
+  function showResult(values) {
+    const score = values.reduce((a, b) => a + b, 0);
+    const eligible = score >= ELIGIBILITY_CUTOFF;
+
+    document.getElementById("score").textContent = score;
+    document.getElementById("verdict").textContent = eligible ? "Elegible para el estudio" : "No elegible para el estudio";
+    document.getElementById("date").textContent =
+      "Fecha: " + new Date().toLocaleString("es-GT", { dateStyle: "long", timeStyle: "short" });
+
+    document.getElementById("quiz").style.display = "none";
+    document.getElementById("result").style.display = "block";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  updateProgress();
+</script>
+</body>
+</html>

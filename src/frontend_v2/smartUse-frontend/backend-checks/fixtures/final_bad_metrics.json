@@ -1,0 +1,65 @@
+{
+  "end_reason": "completed",
+  "forms": {
+    "usability": {
+      "version": 2,
+      "answers": {
+        "d1_1": 4,
+        "d1_2": 1,
+        "d2_1": 1,
+        "d2_2": 4,
+        "d3_1": 1,
+        "d4_1": 1,
+        "d5_1": 2,
+        "d6_1": 1,
+        "d7_1": 1,
+        "d8_1": 5,
+        "d8_2": 4,
+        "d9_1": 5,
+        "d10_1": 5,
+        "d11_1": 0,
+        "d12_1": "Todo bien, gracias \ud83d\ude00"
+      }
+    }
+  },
+  "metrics": [
+    {
+      "decision_point": "screen_on",
+      "duration_ms": 556,
+      "battery_delta_pct": 1,
+      "current_mean": -198642,
+      "peak_rss_kb": 146797
+    },
+    {
+      "decision_point": "active_use",
+      "duration_ms": 102,
+      "battery_delta_pct": 0,
+      "current_mean": -296068,
+      "peak_rss_kb": 105496
+    },
+    {
+      "decision_point": "screen_on",
+      "duration_ms": 787,
+      "current_mean": -137464,
+      "peak_rss_kb": 107614
+    },
+    {
+      "decision_point": "unknown_point",
+      "duration_ms": 285,
+      "battery_delta_pct": 0,
+      "current_mean": -408997,
+      "peak_rss_kb": 94648
+    },
+    {
+      "decision_point": "screen_on",
+      "duration_ms": -1,
+      "battery_delta_pct": 0,
+      "current_mean": -403570,
+      "peak_rss_kb": 125972
+    },
+    {
+      "duration_ms": 10
+    },
+    "not-an-object"
+  ]
+}

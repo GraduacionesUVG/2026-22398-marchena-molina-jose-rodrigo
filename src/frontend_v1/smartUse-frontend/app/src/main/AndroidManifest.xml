@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Registration (POST /users) and, later, the sync jobs need network access. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+      Runtime permission from API 33 (our minSdk), requested in the setup wizard.
+      Not needed for the foreground service to run, but without it the service's
+      persistent notification is hidden from the drawer (still listed in the
+      system Task Manager).
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      Lets the setup wizard show the system "allow this app to ignore battery
+      optimizations" dialog. Being exempt keeps the OS from demoting the idle app
+      to a restrictive standby bucket, which would throttle the capture and sync
+      jobs. Play Store policy restricts this permission; the APK is distributed
+      manually, so that does not apply.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!--
+      Special "appop" permission: it is never granted at install time. Declaring
+      it is what makes the app appear in Settings > Apps > Special app access >
+      Usage access, where the participant toggles it on during setup. Lint flags
+      the declaration itself (ProtectedPermissions) — that is expected here.
+    -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmartUsefrontend">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SmartUsefrontend"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          Lets the data-overview page share the participant's own raw
+          capture log as a CSV via the system share sheet (transparency
+          feature, not a debug tool). android:exported="false", like every
+          component without external callers; the share sheet itself grants the receiving
+          app temporary read access to just that one file.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+
+</manifest>

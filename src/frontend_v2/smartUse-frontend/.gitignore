@@ -1,0 +1,35 @@
+# Build output and Gradle/Kotlin caches
+*.iml
+.gradle
+.kotlin
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Local configuration and secrets (template: local.properties.example)
+local.properties
+*.jks
+*.keystore
+*.p12
+
+# IDE and OS
+.idea/
+.DS_Store
+
+# Local tooling and working notes (not part of the published project)
+.claude/
+.superpowers/
+.github/
+graphify-out/
+CLAUDE.md
+HANDOFF.md
+docs/
+
+# Python
+__pycache__/
+*.pyc
+
+# Test outputs
+testlab/screenshots/
+backend-checks/out/

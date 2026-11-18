@@ -1,0 +1,14 @@
+# Data stays on this machine: raw data, processed tables, reports.
+# Only the trained models are published.
+/data/*
+!/data/models/
+
+# Generated figures (the code that makes them is in plots/ and eda/)
+/figures/
+
+# Python and tooling caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.superpowers/
