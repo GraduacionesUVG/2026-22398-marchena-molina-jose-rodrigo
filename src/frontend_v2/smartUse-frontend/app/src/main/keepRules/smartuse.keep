@@ -1,0 +1,22 @@
+# kotlinx-serialization ships its own R8 rules; these keep the app's
+# @Serializable DTOs and their generated serializers explicitly as well.
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.**
+-keepclassmembers @kotlinx.serialization.Serializable class com.example.smartuse_frontend.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class com.example.smartuse_frontend.**$$serializer { *; }
+
+# OkHttp optional TLS platforms that aren't on Android.
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+
+# Room (2.6.x, via WorkManager) instantiates WorkDatabase_Impl reflectively
+# through its no-arg constructor, but its consumer rule keeps only the class.
+# R8 full mode then strips the constructor and WorkManager's startup
+# initializer crashes on launch (NoSuchMethodException ...WorkDatabase_Impl.<init>).
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+

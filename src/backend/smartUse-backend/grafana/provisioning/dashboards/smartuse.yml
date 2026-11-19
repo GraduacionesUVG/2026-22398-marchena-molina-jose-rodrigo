@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: SmartUse
+    folder: SmartUse
+    type: file
+    # Dashboards are code: edit the JSON in grafana/dashboards/ and restart,
+    # UI edits are not saved back.
+    allowUiUpdates: false
+    options:
+      # Set by grafana/run-grafana.ps1 to this repo's grafana/dashboards.
+      path: ${SMARTUSE_DASHBOARDS_DIR}

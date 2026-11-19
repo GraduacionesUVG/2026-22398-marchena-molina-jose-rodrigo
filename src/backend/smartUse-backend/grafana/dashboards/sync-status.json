@@ -1,0 +1,331 @@
+{
+  "uid": "smartuse-sync-status",
+  "title": "SmartUse — Sync Status",
+  "description": "Who is still syncing canonical records, and how much continuous data they have. A user counts as syncing if their newest canonical epoch started in the last 24 hours.",
+  "tags": [
+    "smartuse"
+  ],
+  "timezone": "America/Guatemala",
+  "editable": false,
+  "refresh": "5m",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "type": "custom",
+        "name": "estudio",
+        "label": "Estudio",
+        "query": "Recolección : recoleccion, Despliegue : despliegue",
+        "current": {
+          "text": "Recolección",
+          "value": "recoleccion",
+          "selected": true
+        },
+        "options": [
+          {
+            "text": "Recolección",
+            "value": "recoleccion",
+            "selected": true
+          },
+          {
+            "text": "Despliegue",
+            "value": "despliegue",
+            "selected": false
+          }
+        ],
+        "multi": false,
+        "includeAll": false,
+        "hide": 0,
+        "description": "Recolección = grupo control. Despliegue = grupo inference, sin cuentas de prueba (QA-BACKEND-CHECK / test)."
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Users syncing",
+      "description": "Users whose newest canonical epoch started in the last 24h, out of all registered users (excluding hard opt-outs).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "smartuse-aurora"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "smartuse-aurora"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  count(*) FILTER (WHERE last_epoch >= now() - interval '24 hours') AS \"Syncing\",\n  count(*) AS \"Registered\"\nFROM (\n  SELECT u.user_id, max(c.start_ts) AS last_epoch\n  FROM users u\n  LEFT JOIN canonical_events c ON c.user_id = u.user_id\n  WHERE u.capture_status <> 'opted_out_hard'\n    AND (('$estudio' = 'recoleccion' AND u.experiment_group = 'control')\n    OR ('$estudio' = 'despliegue' AND u.experiment_group = 'inference'\n        AND lower(btrim(u.university_major)) NOT IN ('qa-backend-check', 'test')))\n  GROUP BY u.user_id\n) per_user"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Registered"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Continuous hours",
+      "description": "Sum of v_participant_hours over every user in the selected study, syncing or not. Lags by each user's newest epoch, whose duration isn't known until the next one arrives.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "smartuse-aurora"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "smartuse-aurora"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(h.captured_hours), 0) AS \"Hours\"\nFROM v_participant_hours h\nJOIN users u ON u.user_id = h.user_id\nWHERE (('$estudio' = 'recoleccion' AND u.experiment_group = 'control')\n    OR ('$estudio' = 'despliegue' AND u.experiment_group = 'inference'\n        AND lower(btrim(u.university_major)) NOT IN ('qa-backend-check', 'test')))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Days of data (hours / 24)",
+      "description": "Continuous hours of the selected study divided by 24.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "smartuse-aurora"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "smartuse-aurora"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sum(h.captured_hours), 0) / 24.0 AS \"Days\"\nFROM v_participant_hours h\nJOIN users u ON u.user_id = h.user_id\nWHERE (('$estudio' = 'recoleccion' AND u.experiment_group = 'control')\n    OR ('$estudio' = 'despliegue' AND u.experiment_group = 'inference'\n        AND lower(btrim(u.university_major)) NOT IN ('qa-backend-check', 'test')))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Per user",
+      "description": "Every registered user in the selected study, newest epoch first. Last epoch is the start of the user's newest canonical record, not the time of their last sync request.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "smartuse-aurora"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 24,
+        "h": 12
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "smartuse-aurora"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  u.user_id::text AS \"User\",\n  u.experiment_group AS \"Group\",\n  u.capture_status AS \"Capture status\",\n  u.signup_ts AS \"Signed up\",\n  CASE\n    WHEN max(c.start_ts) IS NULL THEN 'never synced'\n    WHEN max(c.start_ts) >= now() - interval '24 hours' THEN 'syncing'\n    ELSE 'stopped'\n  END AS \"Status\",\n  count(c.client_record_id) AS \"Records\",\n  COALESCE((SELECT h.captured_hours FROM v_participant_hours h WHERE h.user_id = u.user_id), 0) AS \"Hours\",\n  max(c.start_ts) AS \"Last epoch\"\nFROM users u\nLEFT JOIN canonical_events c ON c.user_id = u.user_id\nWHERE (('$estudio' = 'recoleccion' AND u.experiment_group = 'control')\n    OR ('$estudio' = 'despliegue' AND u.experiment_group = 'inference'\n        AND lower(btrim(u.university_major)) NOT IN ('qa-backend-check', 'test')))\nGROUP BY u.user_id, u.experiment_group, u.capture_status, u.signup_ts\nORDER BY max(c.start_ts) DESC NULLS LAST"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "User"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 300
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Hours"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Status"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "syncing": {
+                        "color": "green",
+                        "index": 0
+                      },
+                      "stopped": {
+                        "color": "red",
+                        "index": 1
+                      },
+                      "never synced": {
+                        "color": "orange",
+                        "index": 2
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    }
+  ]
+}

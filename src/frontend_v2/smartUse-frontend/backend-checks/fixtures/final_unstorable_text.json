@@ -1,0 +1,49 @@
+{
+  "end_reason": "completed",
+  "forms": {
+    "usability": {
+      "version": 2,
+      "answers": {
+        "d1_1": 3,
+        "d12_1": "a\u0000b \ud83d"
+      }
+    }
+  },
+  "metrics": [
+    {
+      "decision_point": "screen_on",
+      "duration_ms": 640,
+      "battery_delta_pct": 1,
+      "current_mean": -144656,
+      "peak_rss_kb": 110085
+    },
+    {
+      "decision_point": "screen_on",
+      "duration_ms": 441,
+      "battery_delta_pct": 0,
+      "current_mean": -339437,
+      "peak_rss_kb": 127157
+    },
+    {
+      "decision_point": "active_use",
+      "duration_ms": 844,
+      "battery_delta_pct": 1,
+      "current_mean": -420324,
+      "peak_rss_kb": 100736
+    },
+    {
+      "decision_point": "active_use",
+      "duration_ms": 662,
+      "battery_delta_pct": 1,
+      "current_mean": -285756,
+      "peak_rss_kb": 142606
+    },
+    {
+      "decision_point": "active_use",
+      "duration_ms": 691,
+      "battery_delta_pct": 0,
+      "current_mean": -391158,
+      "peak_rss_kb": 147665
+    }
+  ]
+}

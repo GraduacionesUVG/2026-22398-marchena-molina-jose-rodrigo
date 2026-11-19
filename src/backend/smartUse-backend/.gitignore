@@ -1,0 +1,19 @@
+# Local tooling
+.claude/
+CLAUDE.md
+graphify-out/
+/docs/superpowers/
+temp/
+
+# Secrets and study data: never commit
+.env
+grafana/.env
+deployment_data/
+*.csv
+
+# Grafana portable install and state (grafana/run-grafana.ps1)
+grafana/.bin/
+grafana/.data/
+
+# Local diagram generator
+generate_aws_diagram.py

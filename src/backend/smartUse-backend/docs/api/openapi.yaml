@@ -1,0 +1,619 @@
+openapi: 3.0.3
+info:
+  title: SmartUse Backend API
+  version: "1.1.0"
+  description: |
+    Backend API for the SmartUse thesis study. Design rationale for every
+    rule below is in the repository README (REQ-* requirements).
+
+    ## Experiment groups
+
+    | Group       | Meaning                                                    |
+    | ----------- | ---------------------------------------------------------- |
+    | `control`   | Closed data-collection study                               |
+    | `inference` | Deployment group: also sends `POST /final`       |
+
+    ## Auth
+
+    `POST /users` returns an `auth_token`. Every other endpoint except the
+    two cutoff endpoints needs it as `Authorization: Bearer <token>`. A
+    missing or unknown token is rejected at the gateway with
+    `401 {"error":"unauthorized"}`.
+
+    ## Transport
+
+    HTTPS only (TLS 1.2+). The API Gateway `execute-api` endpoint has no
+    plaintext listener.
+
+    ## Errors
+
+    Every handler error has the body `{"error": "<code>", "message": "..."}`
+    (see `ErrorResponse`). A 5xx means nothing was stored and the request
+    is safe to retry unchanged.
+
+servers:
+  - url: https://{apiId}.execute-api.{region}.amazonaws.com/prod
+    description: API Gateway invoke URL. Take apiId and region from the SmartUseApi stack output.
+    variables:
+      apiId:
+        default: REPLACE_ME
+      region:
+        default: us-east-1
+
+tags:
+  - name: registration
+    description: Participant registration
+  - name: config
+    description: Study cutoff dates
+  - name: sync
+    description: Canonical usage-data sync
+  - name: deployment
+    description: Deployment-group end-of-study send
+  - name: opt-out
+    description: Participant opt-out
+
+security:
+  - bearerAuth: []
+
+paths:
+  /users:
+    post:
+      tags: [registration]
+      operationId: registerUser
+      summary: Register a participant device
+      description: >
+        No auth: this is how a device gets its auth_token. The app sends
+        experiment_group explicitly; the backend never assigns it. The
+        participant's capture window is set to 21 days from signup.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              age_at_signup: 21
+              gender: femenino
+              university_major: Ingeniería
+              test_score: 34
+              experiment_group: inference
+      responses:
+        '201':
+          description: Participant registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /cutoff:
+    get:
+      tags: [config]
+      operationId: getCutoff
+      summary: Study cutoff date
+      description: >
+        No auth. Cutoff for the closed data-collection study (control
+        group). Hardcoded in `src/lambda/cutoff/index.ts`; `null` means no
+        cutoff is set. Always 200.
+      security: []
+      responses:
+        '200':
+          description: Current cutoff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CutoffResponse'
+              example: { cutoff: '2026-10-19' }
+
+  /cutoff-deployment-group:
+    get:
+      tags: [config]
+      operationId: getDeploymentGroupCutoff
+      summary: Deployment-group cutoff date
+      description: >
+        No auth. Same shape as GET /cutoff, with its own independent value,
+        so the closed study's cutoff never ends the deployment study.
+        Hardcoded in `src/lambda/cutoff-deployment-group/index.ts`; `null`
+        means no cutoff is set. Always 200. See REQ-DEP-06..08.
+      security: []
+      responses:
+        '200':
+          description: Current deployment-group cutoff
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CutoffResponse'
+              example: { cutoff: '2026-11-05' }
+
+  /sync/canonical:
+    post:
+      tags: [sync]
+      operationId: syncCanonical
+      summary: Batched sync of canonical use/non-use epochs
+      description: >
+        Insert-only and idempotent by client_record_id (a record already
+        stored is silently skipped). A 200 means every record in the
+        request is durably stored, so the device can drop exactly those
+        records from its pending queue. `synced_through` is read fresh from
+        stored state, not echoed from the request; the app persists it as
+        its sync cursor. An empty `records` array is valid and just returns
+        the current watermark.
+
+
+        Checks run in this order: body (400/413), capture window (403),
+        then the insert (409 on an epoch collision).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CanonicalSyncRequest'
+      responses:
+        '200':
+          description: Entire batch durably stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanonicalSyncResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/CapturePeriodEnded'
+        '409':
+          $ref: '#/components/responses/EpochConflict'
+        '413':
+          $ref: '#/components/responses/BatchTooLarge'
+
+  /sync/canonical/cursor:
+    get:
+      tags: [sync]
+      operationId: getCanonicalCursor
+      summary: Current canonical sync watermark
+      description: >
+        Recovery path for an app that lost its local cursor (corrupted
+        queue, reinstall with an existing user_id). Returns the same value
+        a successful POST /sync/canonical puts in `synced_through`. Not
+        needed on the happy path; a full resync is also safe, since
+        duplicates are skipped.
+      responses:
+        '200':
+          description: Current watermark. Both fields are null if nothing has been synced yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CanonicalCursorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /final:
+    post:
+      tags: [deployment]
+      operationId: sendFinal
+      summary: End-of-study forms and performance metrics (once per participant)
+      description: >
+        Deployment group only. Sent once at the end of the study (day 21,
+        the cutoff, or an in-app opt-out). Idempotent per user: the first
+        stored send wins, and any later call returns 200 already_received
+        without changing anything, even if its body differs. This check
+        runs before the body is read. Everything is stored in one statement,
+        so it is all or nothing. Invalid metric records are skipped and
+        counted, never rejected. Does not check capture_end_ts,
+        capture_status or experiment_group. String answers have NUL and
+        lone surrogate characters replaced with U+FFFD. See
+        REQ-DEP-09..17.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinalSendRequest'
+            example:
+              end_reason: completed
+              forms:
+                usability:
+                  version: 1
+                  answers: { q1: 4, q2: 1, q3: 'Me ayudó a usar menos el celular' }
+              metrics:
+                - { decision_point: screen_on, duration_ms: 42, battery_delta_pct: 0, current_mean: -180000, peak_rss_kb: 51200 }
+                - { decision_point: active_use, duration_ms: 37 }
+      responses:
+        '201':
+          description: Stored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinalSendResponse'
+              example: { status: stored }
+        '200':
+          description: A final send is already stored for this user. Nothing changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinalSendResponse'
+              example: { status: already_received }
+        '400':
+          description: >
+            Unusable body (error `invalid_body`,
+            REQ-DEP-10). Never returned because of metric records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example: { error: invalid_body, message: 'end_reason must be "completed" or "opt_out"' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /opt-out/soft:
+    post:
+      tags: [opt-out]
+      operationId: optOutSoft
+      summary: Stop capture, keep collected data
+      description: >
+        Sets capture_status to opted_out_soft. No request body. Safe to
+        repeat; each call refreshes opted_out_at.
+      responses:
+        '200':
+          description: Opt-out applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptOutResponse'
+              example: { capture_status: opted_out_soft, opted_out_at: '2026-11-09T14:03:12.000Z' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /opt-out/hard:
+    post:
+      tags: [opt-out]
+      operationId: optOutHard
+      summary: Stop capture and delete collected usage data
+      description: >
+        Deletes this participant's synced usage data (canonical events),
+        then sets capture_status to opted_out_hard. No request body. The
+        users row is kept so participant counts stay accurate, and any
+        POST /final data is not deleted. Every step is idempotent, so a
+        retry after a failure is safe.
+      responses:
+        '200':
+          description: Data deleted and opt-out applied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptOutResponse'
+              example: { capture_status: opted_out_hard, opted_out_at: '2026-11-09T14:03:12.000Z' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >
+        Opaque token issued once by POST /users, sent as
+        `Authorization: Bearer <token>`. No rotation or expiry; it keeps
+        non-participant traffic out rather than being a hardened security
+        boundary.
+
+  schemas:
+    ExperimentGroup:
+      type: string
+      enum: [control, inference]
+      description: control = closed data-collection study, inference = deployment group.
+
+    RegisterRequest:
+      type: object
+      required: [age_at_signup, gender, university_major, test_score, experiment_group]
+      properties:
+        age_at_signup:
+          type: integer
+        gender:
+          type: string
+          minLength: 1
+        university_major:
+          type: string
+          minLength: 1
+        test_score:
+          type: number
+          description: >
+            For experiment_group=inference this is the SAS-SV screening
+            score and must be an integer 10–60 inclusive, otherwise 400.
+            The control group accepts any number.
+        experiment_group:
+          $ref: '#/components/schemas/ExperimentGroup'
+
+    RegisterResponse:
+      type: object
+      required: [user_id, auth_token]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        auth_token:
+          type: string
+          description: 'Send as `Authorization: Bearer <auth_token>` on every authenticated call.'
+
+    CutoffResponse:
+      type: object
+      required: [cutoff]
+      properties:
+        cutoff:
+          type: string
+          format: date
+          nullable: true
+          description: Cutoff date (YYYY-MM-DD), or null if none is set.
+
+    CanonicalRecord:
+      type: object
+      required: [client_record_id, start_ts, is_use, distinct_app_count, granularity]
+      description: >
+        No end_ts or duration. Epochs form a contiguous timeline per
+        subject (one epoch ends where the next starts), so the backend
+        derives end and duration from the next start_ts. The app therefore
+        never sends a subject's most recently closed epoch until the
+        following one has closed.
+      properties:
+        client_record_id:
+          type: string
+          format: uuid
+          description: >
+            Deterministic hash of the epoch's identifying fields (subject
+            id, start_ts, is_use, and the closing-boundary UsageEvents
+            fields), generated on-device at epoch close and resent
+            unchanged on retry. Rebuilding the same raw range gives the
+            same id, so a duplicate rebuild is skipped like a network retry.
+        start_ts:
+          type: string
+          format: date-time
+          description: Must be unique per subject; a collision is a 409.
+        is_use:
+          type: boolean
+          description: >
+            Whether the epoch is device use. Sent explicitly because a use
+            epoch can legally have zero recorded apps.
+        distinct_app_count:
+          type: integer
+        granularity:
+          type: string
+          enum: [small, large]
+
+    CanonicalSyncRequest:
+      type: object
+      required: [records]
+      properties:
+        records:
+          type: array
+          maxItems: 500
+          description: >
+            At most 500 records. A larger batch is rejected with 413 (never
+            truncated) and must be split by the app.
+          items:
+            $ref: '#/components/schemas/CanonicalRecord'
+
+    SyncedThrough:
+      type: object
+      required: [client_record_id, start_ts]
+      description: The subject's latest stored epoch.
+      properties:
+        client_record_id:
+          type: string
+          format: uuid
+        start_ts:
+          type: string
+          format: date-time
+
+    CanonicalSyncResponse:
+      type: object
+      required: [received, synced_through]
+      properties:
+        received:
+          type: integer
+          description: Number of records in this request, all now durably stored.
+        synced_through:
+          type: object
+          allOf:
+            - $ref: '#/components/schemas/SyncedThrough'
+          nullable: true
+          description: >
+            The subject's new watermark, read from stored state after the
+            insert. Null only if the subject has nothing stored (an empty
+            first batch).
+
+    CanonicalCursorResponse:
+      type: object
+      required: [client_record_id, start_ts]
+      properties:
+        client_record_id:
+          type: string
+          format: uuid
+          nullable: true
+        start_ts:
+          type: string
+          format: date-time
+          nullable: true
+
+    FinalSendRequest:
+      type: object
+      required: [end_reason, forms]
+      properties:
+        end_reason:
+          type: string
+          enum: [completed, opt_out]
+        forms:
+          type: object
+          required: [usability]
+          description: One key per form. Only usability is required; other keys are stored the same way.
+          properties:
+            usability:
+              $ref: '#/components/schemas/FinalForm'
+          additionalProperties:
+            $ref: '#/components/schemas/FinalForm'
+        metrics:
+          type: array
+          description: >
+            May be empty or absent. No maximum: at least 10,000 records
+            (bodies up to at least 2 MB) are accepted.
+          items:
+            $ref: '#/components/schemas/FinalMetricRecord'
+
+    FinalForm:
+      type: object
+      required: [version, answers]
+      properties:
+        version:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Which question set the app showed. The researcher keeps the id → text table per version.
+        answers:
+          type: object
+          description: >
+            Question id → answer. An answer is an int32 (a choice sent as
+            its listed position 1–5; Sí/No as 1/0) or a string (an open
+            answer). Question ids, counts and values are not validated.
+            Unanswered optional questions are absent.
+          additionalProperties:
+            oneOf:
+              - type: integer
+                format: int32
+              - type: string
+
+    FinalMetricRecord:
+      type: object
+      required: [decision_point, duration_ms]
+      description: >
+        No id and no timestamp (privacy); records arrive in random order.
+        An invalid record is skipped and counted in
+        final_sends.metrics_skipped, never a 400. Absent or null optional
+        fields are stored as NULL.
+      properties:
+        decision_point:
+          type: string
+          enum: [screen_on, active_use]
+        duration_ms:
+          type: integer
+          format: int32
+          minimum: 0
+        battery_delta_pct:
+          type: integer
+          format: int32
+          nullable: true
+        current_mean:
+          type: integer
+          format: int64
+          nullable: true
+          description: Mean battery current during the decision point, µA (negative = discharging).
+        peak_rss_kb:
+          type: integer
+          format: int32
+          nullable: true
+
+    FinalSendResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [stored, already_received]
+
+    OptOutResponse:
+      type: object
+      required: [capture_status, opted_out_at]
+      properties:
+        capture_status:
+          type: string
+          enum: [opted_out_soft, opted_out_hard]
+        opted_out_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          enum: [validation_error, invalid_body, capture_period_ended, epoch_conflict, batch_too_large, unauthorized]
+          description: >
+            validation_error: POST /users and POST /sync/canonical.
+            invalid_body: POST /final.
+            unauthorized: gateway 401 (no message field).
+        message:
+          type: string
+
+    EpochConflictResponse:
+      type: object
+      required: [error, message, conflicts]
+      properties:
+        error:
+          type: string
+          enum: [epoch_conflict]
+        message:
+          type: string
+        conflicts:
+          type: array
+          items:
+            type: object
+            required: [client_record_id, start_ts]
+            properties:
+              client_record_id:
+                type: string
+                description: As sent in the request.
+              start_ts:
+                type: string
+                format: date-time
+                description: The colliding instant, normalized to UTC ISO-8601.
+
+  responses:
+    ValidationError:
+      description: Invalid body (including invalid JSON). Nothing was stored.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example: { error: validation_error, message: 'records[0].is_use is required and must be a boolean' }
+    Unauthorized:
+      description: >
+        Missing or invalid bearer token. Rejected by the Lambda authorizer
+        at the gateway; the UNAUTHORIZED gateway response
+        (REQ-DEP-18) sets the body.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example: { error: unauthorized }
+    CapturePeriodEnded:
+      description: >
+        Now is past this participant's capture_end_ts (signup + 21 days).
+        A backend backstop; the app should stop syncing on its own first.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example: { error: capture_period_ended, message: capture period has ended for this user }
+    EpochConflict:
+      description: >
+        One or more records collide on (user_id, start_ts), either with
+        stored data or with an earlier record in the same batch (the first
+        record to claim an instant wins). Nothing from the batch is stored.
+        `conflicts` lists exactly the colliding records: shift their
+        start_ts (e.g. by a millisecond) and resend. Do not retry unchanged;
+        it will fail again. Records skipped as duplicates by
+        client_record_id are never listed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EpochConflictResponse'
+    BatchTooLarge:
+      description: >
+        `records` holds more than 500 items. Nothing was stored; split into
+        batches of at most 500 and resend.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example: { error: batch_too_large, message: 'records must contain at most 500 items (got 612); split the batch and resend' }

@@ -1,0 +1,18 @@
+{
+  "records": [
+    {
+      "client_record_id": "262509e3-7200-4ef5-82f9-43b7f7b7bced",
+      "start_ts": "2026-09-27T17:42:05.000Z",
+      "is_use": true,
+      "distinct_app_count": 2,
+      "granularity": "small"
+    },
+    {
+      "client_record_id": "22e8f7d4-8bcf-4b2c-a62e-023b630d33ff",
+      "start_ts": "2026-09-27T17:36:05.000Z",
+      "is_use": false,
+      "distinct_app_count": 0,
+      "granularity": "small"
+    }
+  ]
+}

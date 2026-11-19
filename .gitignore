@@ -1,0 +1,18 @@
+# Local delivery notes and guide PDFs (root only; a bare `_*` would also drop Python __init__.py files)
+/_*
+/checklist.pdf
+/manual.pdf
+
+# Safety net (each subproject in src/ also has its own .gitignore)
+.env
+local.properties
+node_modules/
+build/
+.gradle/
+cdk.out/
+__pycache__/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+# kotlinx-serialization ships its own R8 rules; these keep the app's
+# @Serializable DTOs and their generated serializers explicitly as well.
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.**
+-keepclassmembers @kotlinx.serialization.Serializable class com.example.smartuse_frontend.** {
+    *** Companion;
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class com.example.smartuse_frontend.**$$serializer { *; }
+
+# OkHttp optional TLS platforms that aren't on Android.
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**

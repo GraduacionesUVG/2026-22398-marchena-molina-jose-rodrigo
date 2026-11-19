@@ -1,0 +1,6 @@
+# One device per line, as gcloud's --device value (model=…,version=…).
+# List what your project can use:  gcloud firebase test android models list
+# The free Spark plan has a small daily quota: keep this list short.
+# First clean run: one device. Add API 33/35/36 once the suite passes here.
+model=SmallPhone.arm,version=33
+model=MediumPhone.arm,version=36

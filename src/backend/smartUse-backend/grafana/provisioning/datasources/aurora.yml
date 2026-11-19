@@ -1,0 +1,20 @@
+apiVersion: 1
+
+# Values come from grafana/.env (written by grafana/setup-db-access.sh).
+datasources:
+  - name: SmartUse Aurora
+    uid: smartuse-aurora
+    type: grafana-postgresql-datasource
+    access: proxy
+    isDefault: true
+    url: ${AURORA_HOST}:5432
+    user: ${GRAFANA_DB_USER}
+    jsonData:
+      database: smartuse
+      sslmode: require
+      postgresVersion: 1500
+      timescaledb: false
+      maxOpenConns: 5
+    secureJsonData:
+      password: ${GRAFANA_DB_PASSWORD}
+    editable: false

@@ -1,0 +1,7 @@
+# Compatibility run: every supported Android version (API 33-36) on the one
+# virtual model that covers them all (gcloud firebase test android models list).
+# Four device runs of the daily quota: use testlab\run_compat.bat.
+model=MediumPhone.arm,version=33
+model=MediumPhone.arm,version=34
+model=MediumPhone.arm,version=35
+model=MediumPhone.arm,version=36

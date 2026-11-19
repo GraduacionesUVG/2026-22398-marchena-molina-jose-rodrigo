@@ -1,0 +1,11 @@
+{
+  "records": [
+    {
+      "client_record_id": "308a4c99-e296-4578-870b-e52305f96a8b",
+      "start_ts": "2026-09-27T17:06:05.000Z",
+      "is_use": false,
+      "distinct_app_count": 0,
+      "granularity": "small"
+    }
+  ]
+}
